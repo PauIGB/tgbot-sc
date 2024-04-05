@@ -27,7 +27,7 @@ let anHourInterval;
 bot.on('message', (message) => {
 
   const messageText = message?.text;
-  console.log('....... here ........', msg)
+  console.log('....... here ........', message);
   // all dotenv values are strings
   if (OWNER_ID !== String(message?.from?.id)) {
     return;
