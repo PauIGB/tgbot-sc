@@ -2,7 +2,7 @@
  * Primitive tg bot
  * sending just 2 messages in group based on input data
  * required to be added in group and got admin rights
- * @param {string} private_msg 2024-04-03 14:00
+ * @param {string} private_message 2024-04-03 14:00
  * @author nil
  */
 
@@ -12,20 +12,24 @@ const TelegramBot = require('node-telegram-bot-api');
 
 const { GROUP_ID, OWNER_ID, TOKEN } = process?.env || {};
 
+const FORMAT = 'YYYY-MM-DD HH:MM'
+
 // TODO: clear interval needed
 
-const bot = new TelegramBot(TOKEN, { polling: true });
+const bot = new TelegramBot(TOKEN, { polling: true, webHook: { port: 3000 } });
+
+let aDayInterval;
+let anHourInterval;
 
 /**
  * Listen to bot messages
  */
+bot.on('message', (message) => {
 
-bot.on('message', (msg) => {
+  const messageText = message?.text;
+  console.log('....... here ........', msg)
   // all dotenv values are strings
-  console.log('mst', msg)
-  const messageText = msg.text;
-  // console.log(typeof OWNER_ID);
-  if (OWNER_ID !== String(msg?.from?.id)) {
+  if (OWNER_ID !== String(message?.from?.id)) {
     return;
   }
 
@@ -39,32 +43,36 @@ bot.on('message', (msg) => {
     minute: 'numeric', 
     hour12: false // 24 hours format
   };
-  const dateInBishkekFormat = `${new Date('2024-04-06 11:00').toLocaleString('en-US', options)} Asia/Bishkek`
-  console.log('here ......')
- bot.sendMessage(GROUP_ID, `The conference is scheduled for *${dateInBishkekFormat}*\\. Enjoy the discussion\\!`, { parse_mode: "MarkdownV2" });
- return;
-  if (messageText?.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)) {
-    const conferenceDateTime = new Date(`${messageText} GMT+6`);
-    const dateInBishkekFormat = `${new Date(conferenceDateTime).toLocaleString('en-US', options)} Asia/Bishkek`;
 
-    const notification24hBefore = new Date(conferenceDateTime.getTime() - 24 * 60 * 60 * 1000);
-    const notification1hBefore = new Date(conferenceDateTime.getTime() - 60 * 60 * 1000);
+  if (!messageText?.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)) {
+    bot.sendMessage(GROUP_ID, `Incorrect format. Use following format: ${FORMAT}`);
+    return;
+  }
 
-    /**
-     * Sends 3 messages
-     * 1 - conference is scheduled
-     * 2 - reminder in 24 hours
-     * 3 - reminder in hour
-     * 
-     * It may work incorrectly as setTimeout is used here
-     */
+  const conferenceDateTime = new Date(`${messageText} GMT+6`);
+  const dateInBishkekFormat = `${new Date(conferenceDateTime).toLocaleString('en-US', options)} Asia/Bishkek`;
 
-    bot.sendMessage(GROUP_ID, `Conference is scheduled for ${dateInBishkekFormat}`);
+  const notification24hBefore = new Date(conferenceDateTime.getTime() - 24 * 60 * 60 * 1000);
+  const notification1hBefore = new Date(conferenceDateTime.getTime() - 60 * 60 * 1000);
+
+  /**
+   * Sends 3 messages
+   * 1 - conference is scheduled
+   * 2 - reminder in 24 hours
+   * 3 - reminder in hour
+   * 
+   * It may work incorrectly as setTimeout is used here
+   */
+  bot.sendMessage(GROUP_ID, `Conference is scheduled for ${dateInBishkekFormat}`);
+  if (notification24hBefore > 0) {
     setTimeout(() => {
-      bot.sendMessage(GROUP_ID, `Reminder! Don't forget to join the conference on ${dateInBishkekFormat}`);
+      aDayInterval = bot.sendMessage(GROUP_ID, `Reminder! Don't forget to join the conference on ${dateInBishkekFormat}`);
     }, notification24hBefore - Date.now());
+  }
+  if (notification1hBefore > 0) {
     setTimeout(() => {
       bot.sendMessage(GROUP_ID,  `We will start soon! Don't forget to join the conference on ${dateInBishkekFormat}`);
     }, notification1hBefore - Date.now());
   }
+
 });
